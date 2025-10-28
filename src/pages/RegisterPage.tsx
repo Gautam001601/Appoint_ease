@@ -7,7 +7,6 @@ const RegisterPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
-    userType: 'patient',
     firstName: '',
     lastName: '',
     email: '',
@@ -54,7 +53,6 @@ const RegisterPage = () => {
 
     try {
       await register({
-        userType: formData.userType,
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,

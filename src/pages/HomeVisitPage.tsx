@@ -1,10 +1,23 @@
 import React, { useState } from 'react';
-import { Home, Clock, Shield, User, Phone, MapPin, Calendar, CheckCircle } from 'lucide-react';
+import { Home, Clock, Shield, User, Phone, MapPin, Calendar, CheckCircle, X } from 'lucide-react';
+import { supabaseService } from '../services/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 const HomeVisitPage = () => {
+  const { user } = useAuth();
   const [selectedSpecialty, setSelectedSpecialty] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
+  const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [bookingForm, setBookingForm] = useState({
+    patientName: '',
+    patientAge: '',
+    patientGender: '',
+    patientPhone: '',
+    patientEmail: '',
+    address: '',
+    reason: ''
+  });
 
   const specialties = [
     { name: 'General Medicine', available: true, description: 'For common health issues, check-ups, and consultations' },
@@ -16,6 +29,58 @@ const HomeVisitPage = () => {
     { name: 'Orthopedics', available: false, description: 'Currently available only at clinic' },
     { name: 'Neurology', available: false, description: 'Available for follow-up consultations only' }
   ];
+
+  const handleSubmitBooking = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!user) {
+      alert('Please login to book a home visit');
+      return;
+    }
+
+    if (!selectedSpecialty) {
+      alert('Please select a specialty');
+      return;
+    }
+
+    try {
+      await supabaseService.bookAppointment({
+        patient_id: user.id,
+        appointment_type: 'home_visit',
+        appointment_date: selectedDate,
+        appointment_time: selectedTime,
+        patient_name: bookingForm.patientName,
+        patient_age: bookingForm.patientAge ? parseInt(bookingForm.patientAge) : undefined,
+        patient_gender: bookingForm.patientGender,
+        patient_phone: bookingForm.patientPhone,
+        patient_email: bookingForm.patientEmail,
+        address: bookingForm.address,
+        specialty: selectedSpecialty,
+        reason: bookingForm.reason
+      });
+
+      setBookingSuccess(true);
+      setBookingForm({
+        patientName: '',
+        patientAge: '',
+        patientGender: '',
+        patientPhone: '',
+        patientEmail: '',
+        address: '',
+        reason: ''
+      });
+      setSelectedSpecialty('');
+      setSelectedDate('');
+      setSelectedTime('');
+
+      setTimeout(() => {
+        setBookingSuccess(false);
+      }, 5000);
+    } catch (error) {
+      console.error('Error booking home visit:', error);
+      alert('Failed to book home visit. Please try again.');
+    }
+  };
 
   const timeSlots = [
     '9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM',
@@ -41,12 +106,15 @@ const HomeVisitPage = () => {
           <div className="bg-white rounded-2xl shadow-lg p-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Request Home Visit</h2>
             
-            <form className="space-y-6">
+            <form className="space-y-6" onSubmit={handleSubmitBooking}>
               {/* Patient Information */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Patient Name</label>
                 <input
                   type="text"
+                  required
+                  value={bookingForm.patientName}
+                  onChange={(e) => setBookingForm({...bookingForm, patientName: e.target.value})}
                   placeholder="Enter patient's full name"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 />
@@ -57,17 +125,23 @@ const HomeVisitPage = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Age</label>
                   <input
                     type="number"
+                    value={bookingForm.patientAge}
+                    onChange={(e) => setBookingForm({...bookingForm, patientAge: e.target.value})}
                     placeholder="Age"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
-                  <select className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
-                    <option>Select Gender</option>
-                    <option>Male</option>
-                    <option>Female</option>
-                    <option>Other</option>
+                  <select
+                    value={bookingForm.patientGender}
+                    onChange={(e) => setBookingForm({...bookingForm, patientGender: e.target.value})}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  >
+                    <option value="">Select Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
                   </select>
                 </div>
               </div>
@@ -78,6 +152,9 @@ const HomeVisitPage = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
                   <input
                     type="tel"
+                    required
+                    value={bookingForm.patientPhone}
+                    onChange={(e) => setBookingForm({...bookingForm, patientPhone: e.target.value})}
                     placeholder="+1 (555) 000-0000"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   />
@@ -86,6 +163,8 @@ const HomeVisitPage = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
                   <input
                     type="email"
+                    value={bookingForm.patientEmail}
+                    onChange={(e) => setBookingForm({...bookingForm, patientEmail: e.target.value})}
                     placeholder="email@example.com"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   />
@@ -97,6 +176,9 @@ const HomeVisitPage = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Complete Address</label>
                 <textarea
                   rows={3}
+                  required
+                  value={bookingForm.address}
+                  onChange={(e) => setBookingForm({...bookingForm, address: e.target.value})}
                   placeholder="Enter your complete address including apartment/house number, street, area, and landmarks"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 ></textarea>
@@ -125,14 +207,17 @@ const HomeVisitPage = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Preferred Date</label>
                   <input
                     type="date"
+                    required
                     value={selectedDate}
                     onChange={(e) => setSelectedDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Preferred Time</label>
-                  <select 
+                  <select
+                    required
                     value={selectedTime}
                     onChange={(e) => setSelectedTime(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
@@ -150,6 +235,8 @@ const HomeVisitPage = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Reason for Visit</label>
                 <textarea
                   rows={3}
+                  value={bookingForm.reason}
+                  onChange={(e) => setBookingForm({...bookingForm, reason: e.target.value})}
                   placeholder="Brief description of health concern or reason for consultation"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 ></textarea>
@@ -177,6 +264,15 @@ const HomeVisitPage = () => {
                 Request Home Visit - ₹1,500
               </button>
             </form>
+
+            {bookingSuccess && (
+              <div className="mt-4 bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-center text-green-800">
+                  <CheckCircle className="h-5 w-5 mr-2" />
+                  <span className="font-semibold">Home visit booked successfully! You will receive a notification shortly.</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Information Panel */}

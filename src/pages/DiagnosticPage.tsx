@@ -1,71 +1,87 @@
-import React, { useState } from 'react';
-import { FileText, Clock, Home, Shield, Calendar, User, Search } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { FileText, Clock, Home, Shield, Calendar, User, Search, CheckCircle, X } from 'lucide-react';
+import { supabaseService, DiagnosticTest } from '../services/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 const DiagnosticPage = () => {
+  const { user } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
+  const [diagnosticTests, setDiagnosticTests] = useState<DiagnosticTest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [bookingForm, setBookingForm] = useState({
+    patientName: '',
+    patientAge: '',
+    patientGender: '',
+    patientPhone: '',
+    address: '',
+    selectedTests: [] as string[]
+  });
+
+  useEffect(() => {
+    loadDiagnosticTests();
+  }, []);
+
+  const loadDiagnosticTests = async () => {
+    try {
+      setLoading(true);
+      const data = await supabaseService.getDiagnosticTests();
+      setDiagnosticTests(data);
+    } catch (error) {
+      console.error('Error loading diagnostic tests:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmitBooking = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!user) {
+      alert('Please login to book diagnostic tests');
+      return;
+    }
+
+    try {
+      await supabaseService.bookAppointment({
+        patient_id: user.id,
+        appointment_type: 'diagnostic',
+        appointment_date: selectedDate,
+        appointment_time: selectedTime,
+        patient_name: bookingForm.patientName,
+        patient_age: bookingForm.patientAge ? parseInt(bookingForm.patientAge) : undefined,
+        patient_gender: bookingForm.patientGender,
+        patient_phone: bookingForm.patientPhone,
+        address: bookingForm.address,
+        reason: `Tests: ${bookingForm.selectedTests.join(', ')}`
+      });
+
+      setBookingSuccess(true);
+      setBookingForm({
+        patientName: '',
+        patientAge: '',
+        patientGender: '',
+        patientPhone: '',
+        address: '',
+        selectedTests: []
+      });
+      setSelectedDate('');
+      setSelectedTime('');
+
+      setTimeout(() => {
+        setBookingSuccess(false);
+      }, 5000);
+    } catch (error) {
+      console.error('Error booking diagnostic test:', error);
+      alert('Failed to book test. Please try again.');
+    }
+  };
 
   const testCategories = [
-    'All Tests', 'Blood Tests', 'Radiology', 'Cardiology', 
+    'All Tests', 'Blood Tests', 'Radiology', 'Cardiology',
     'Pathology', 'Women\'s Health', 'Complete Packages'
-  ];
-
-  const popularTests = [
-    {
-      id: 1,
-      name: 'Complete Blood Count (CBC)',
-      category: 'Blood Tests',
-      price: 400,
-      reportTime: '2-4 hours',
-      preparation: 'No fasting required',
-      popular: true
-    },
-    {
-      id: 2,
-      name: 'Lipid Profile',
-      category: 'Blood Tests',
-      price: 800,
-      reportTime: '4-6 hours',
-      preparation: '12 hours fasting required',
-      popular: true
-    },
-    {
-      id: 3,
-      name: 'Thyroid Function Test',
-      category: 'Blood Tests',
-      price: 650,
-      reportTime: '6-8 hours',
-      preparation: 'No fasting required',
-      popular: true
-    },
-    {
-      id: 4,
-      name: 'X-Ray Chest',
-      category: 'Radiology',
-      price: 500,
-      reportTime: '1-2 hours',
-      preparation: 'No preparation needed',
-      popular: false
-    },
-    {
-      id: 5,
-      name: 'ECG',
-      category: 'Cardiology',
-      price: 300,
-      reportTime: '30 minutes',
-      preparation: 'Wear loose clothing',
-      popular: true
-    },
-    {
-      id: 6,
-      name: 'Diabetes Profile',
-      category: 'Blood Tests',
-      price: 1200,
-      reportTime: '4-6 hours',
-      preparation: '12 hours fasting required',
-      popular: true
-    }
   ];
 
   const healthPackages = [
@@ -100,10 +116,17 @@ const DiagnosticPage = () => {
     '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM', '6:00 PM'
   ];
 
+  const filteredTests = diagnosticTests.filter(test => {
+    return (
+      selectedCategory === '' ||
+      selectedCategory === 'All Tests' ||
+      test.category === selectedCategory
+    );
+  });
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
             Diagnostic <span className="text-purple-600">Tests</span>
@@ -113,7 +136,6 @@ const DiagnosticPage = () => {
           </p>
         </div>
 
-        {/* Quick Features */}
         <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-2xl p-8 mb-12">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-center">
             <div className="flex flex-col items-center">
@@ -140,9 +162,7 @@ const DiagnosticPage = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
-            {/* Health Packages */}
             <div className="bg-white rounded-2xl shadow-lg p-8">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Popular Health Packages</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -159,7 +179,7 @@ const DiagnosticPage = () => {
                         </span>
                       )}
                     </div>
-                    
+
                     <div className="mb-4">
                       <div className="flex items-center space-x-2">
                         <span className="text-2xl font-bold text-purple-600">₹{pkg.price}</span>
@@ -186,21 +206,11 @@ const DiagnosticPage = () => {
               </div>
             </div>
 
-            {/* Individual Tests */}
             <div className="bg-white rounded-2xl shadow-lg p-8">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Individual Tests</h2>
-              
-              {/* Search and Filter */}
+
               <div className="flex flex-col md:flex-row gap-4 mb-6">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                  <input
-                    type="text"
-                    placeholder="Search tests..."
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  />
-                </div>
-                <select 
+                <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
                   className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
@@ -211,9 +221,8 @@ const DiagnosticPage = () => {
                 </select>
               </div>
 
-              {/* Tests Grid */}
               <div className="space-y-4">
-                {popularTests.map(test => (
+                {filteredTests.map(test => (
                   <div key={test.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex-1">
@@ -229,38 +238,35 @@ const DiagnosticPage = () => {
                       </div>
                       <span className="text-xl font-bold text-purple-600">₹{test.price}</span>
                     </div>
-                    
+
                     <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 mb-4">
                       <div className="flex items-center">
                         <Clock className="h-4 w-4 mr-2" />
-                        <span>Report in {test.reportTime}</span>
+                        <span>Report in {test.report_time}</span>
                       </div>
                       <div className="flex items-center">
                         <FileText className="h-4 w-4 mr-2" />
-                        <span>{test.preparation}</span>
+                        <span>{test.preparation || 'No preparation'}</span>
                       </div>
                     </div>
-
-                    <button className="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 transition-colors font-medium">
-                      Book Test
-                    </button>
                   </div>
                 ))}
               </div>
             </div>
           </div>
 
-          {/* Booking Panel */}
           <div className="space-y-6">
-            {/* Booking Form */}
             <div className="bg-white rounded-2xl shadow-lg p-6">
               <h3 className="text-xl font-bold text-gray-900 mb-6">Book Your Test</h3>
-              
-              <form className="space-y-4">
+
+              <form className="space-y-4" onSubmit={handleSubmitBooking}>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Patient Name</label>
                   <input
                     type="text"
+                    required
+                    value={bookingForm.patientName}
+                    onChange={(e) => setBookingForm({...bookingForm, patientName: e.target.value})}
                     placeholder="Enter patient name"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
@@ -271,17 +277,23 @@ const DiagnosticPage = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Age</label>
                     <input
                       type="number"
+                      value={bookingForm.patientAge}
+                      onChange={(e) => setBookingForm({...bookingForm, patientAge: e.target.value})}
                       placeholder="Age"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                      <option>Select</option>
-                      <option>Male</option>
-                      <option>Female</option>
-                      <option>Other</option>
+                    <select
+                      value={bookingForm.patientGender}
+                      onChange={(e) => setBookingForm({...bookingForm, patientGender: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    >
+                      <option value="">Select</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
                     </select>
                   </div>
                 </div>
@@ -290,6 +302,9 @@ const DiagnosticPage = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
                   <input
                     type="tel"
+                    required
+                    value={bookingForm.patientPhone}
+                    onChange={(e) => setBookingForm({...bookingForm, patientPhone: e.target.value})}
                     placeholder="+1 (555) 000-0000"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
@@ -299,15 +314,18 @@ const DiagnosticPage = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Collection Date</label>
                   <input
                     type="date"
+                    required
                     value={selectedDate}
                     onChange={(e) => setSelectedDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Preferred Time</label>
-                  <select 
+                  <select
+                    required
                     value={selectedTime}
                     onChange={(e) => setSelectedTime(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
@@ -323,20 +341,12 @@ const DiagnosticPage = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Collection Address</label>
                   <textarea
                     rows={3}
+                    required
+                    value={bookingForm.address}
+                    onChange={(e) => setBookingForm({...bookingForm, address: e.target.value})}
                     placeholder="Enter complete address for sample collection"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   ></textarea>
-                </div>
-
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="homeCollection"
-                    className="h-4 w-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                  />
-                  <label htmlFor="homeCollection" className="ml-2 text-sm text-gray-700">
-                    Home sample collection (Free)
-                  </label>
                 </div>
 
                 <button
@@ -345,10 +355,18 @@ const DiagnosticPage = () => {
                 >
                   Schedule Test
                 </button>
+
+                {bookingSuccess && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-center text-green-800">
+                      <CheckCircle className="h-5 w-5 mr-2" />
+                      <span className="font-semibold">Test booked successfully! You will receive a notification shortly.</span>
+                    </div>
+                  </div>
+                )}
               </form>
             </div>
 
-            {/* Senior Discount */}
             <div className="bg-green-50 border border-green-200 rounded-2xl p-6">
               <h3 className="text-lg font-bold text-green-800 mb-2 flex items-center">
                 <User className="h-5 w-5 mr-2" />
@@ -363,21 +381,9 @@ const DiagnosticPage = () => {
                 <code className="text-green-600 font-bold">SENIOR20</code>
               </div>
             </div>
-
-            {/* Report Access */}
-            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6">
-              <h3 className="text-lg font-bold text-blue-800 mb-2">Access Your Reports</h3>
-              <p className="text-blue-700 text-sm mb-4">
-                Download your test reports anytime from our secure portal
-              </p>
-              <button className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                View Reports
-              </button>
-            </div>
           </div>
         </div>
 
-        {/* Important Notes */}
         <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-6 mt-8">
           <h3 className="text-lg font-bold text-yellow-800 mb-4">Important Information</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-yellow-700 text-sm">

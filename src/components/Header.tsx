@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Heart, Menu, X, User, Phone, LogOut } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import NotificationBell from './NotificationBell';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -43,8 +44,9 @@ const Header = () => {
             
             {isAuthenticated ? (
               <div className="flex items-center space-x-4">
-                <Link 
-                  to="/dashboard" 
+                <NotificationBell />
+                <Link
+                  to="/dashboard"
                   className="flex items-center text-gray-700 hover:text-blue-600 transition-colors"
                 >
                   <User className="h-4 w-4 mr-1" />
